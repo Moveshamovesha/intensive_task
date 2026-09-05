@@ -1,10 +1,16 @@
 package com.example;
 
 import java.util.Scanner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Main {
 
+    private static final Logger logger = LoggerFactory.getLogger(Main.class);
+
     public static void main(String[] args) {
+
+        logger.info("Приложение запущено");
 
         Scanner scanner = new Scanner(System.in);
         boolean running = true;
@@ -15,12 +21,15 @@ public class Main {
 
             while (!scanner.hasNextInt()) {
                 System.out.println("Команда должна быть числом.");
+                logger.warn("Пользователь ввёл не число");
                 scanner.nextLine();
                 System.out.print("Выберите действие: ");
             }
 
             int choice = scanner.nextInt();
             scanner.nextLine();
+
+            logger.info("Выбрана команда: {}", choice);
 
             switch (choice) {
 
