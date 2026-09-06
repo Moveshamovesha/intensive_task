@@ -1,4 +1,4 @@
-# User Service (Hibernate + PostgreSQL)
+# Intensive task 1 (Hibernate + PostgreSQL)
 
 ## Название модуля и текст домашнего задания
 
@@ -33,12 +33,11 @@
 
 ### Фича-ветки
 
-- `feature/project-setup` — pom.xml, hibernate.cfg.xml, HibernateUtil (тимлид)
-- `feature/add-entity` — сущность User (тимлид)
-- `feature/user-dao` — UserDao + UserDaoImpl (Александр)
-- `feature/console-ui` — консольное меню (Сергей)
+- `feature/project-setup` — pom.xml, hibernate.cfg.xml, HibernateUtil, сущность User (тимлид)
+- `feature/user-dao` — UserDao + UserDaoImpl (Александр, доработка — тимлид)
+- `feature/console-ui` — консольное меню (Сергей, доработка — тимлид)
 - `feature/logging` — logback.xml (Сергей)
-- `docs/readme` — README.md (тимлид)
+- `bugfix/fix-dao-and-menu` — исправления после код-ревью (тимлид)
 
 ### Git-регламент
 

@@ -3,6 +3,7 @@ package com.example.entity;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
+
 /**
  * Сущность пользователя.
  * Отображается на таблицу "users" в базе данных PostgreSQL.
@@ -10,6 +11,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "users")
 public class User {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -32,8 +34,7 @@ public class User {
      */
     public User() {
     }
-    public User() {
-    }
+
     /**
      * Создаёт нового пользователя для сохранения в базу.
      *
@@ -42,11 +43,11 @@ public class User {
      * @param age   возраст
      */
     public User(String name, String email, Integer age) {
-    public User(String name, String email, Integer age) {
         this.name = name;
         this.email = email;
         this.age = age;
     }
+
     /**
      * Вызывается Hibernate автоматически перед сохранением в базу.
      * Проставляет текущую дату и время в поле createdAt.
@@ -55,42 +56,52 @@ public class User {
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
     }
+
     /** @return уникальный идентификатор пользователя */
     public Long getId() {
         return id;
     }
 
+    /** @param id уникальный идентификатор пользователя */
     public void setId(Long id) {
         this.id = id;
     }
 
+    /** @return имя пользователя */
     public String getName() {
         return name;
     }
 
+    /** @param name имя пользователя */
     public void setName(String name) {
         this.name = name;
     }
 
+    /** @return адрес электронной почты */
     public String getEmail() {
         return email;
     }
 
+    /** @param email адрес электронной почты */
     public void setEmail(String email) {
         this.email = email;
     }
 
+    /** @return возраст пользователя */
     public Integer getAge() {
         return age;
     }
 
+    /** @param age возраст пользователя */
     public void setAge(Integer age) {
         this.age = age;
     }
 
+    /** @return дата и время создания записи */
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
+
     /**
      * Возвращает строковое представление пользователя для вывода в консоль.
      *
@@ -98,7 +109,7 @@ public class User {
      */
     @Override
     public String toString() {
-        return "User id=" + id + ", name='" + name + "', email='" + email
-                + "', age=" + age + ", createdAt=" + createdAt + ".";
+        return "User{id=" + id + ", name='" + name + "', email='" + email
+                + "', age=" + age + ", createdAt=" + createdAt + "}";
     }
 }

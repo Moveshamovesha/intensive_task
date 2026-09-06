@@ -4,12 +4,13 @@ import com.example.entity.User;
 
 import java.util.List;
 import java.util.Optional;
+
 /**
  * DAO-интерфейс для работы с сущностью User.
  * Определяет базовые CRUD-операции, скрывая от остального кода детали работы с базой данных.
  */
 public interface UserDao {
-public interface UserDao {
+
     /**
      * Сохраняет нового пользователя в базу данных.
      *
@@ -17,6 +18,7 @@ public interface UserDao {
      * @return сохранённый пользователь с присвоенным id
      */
     User save(User user);
+
     /**
      * Ищет пользователя по идентификатору.
      *
@@ -24,12 +26,14 @@ public interface UserDao {
      * @return Optional с пользователем или пустой Optional, если не найден
      */
     Optional<User> findById(Long id);
+
     /**
      * Возвращает всех пользователей из базы.
      *
      * @return список пользователей (пустой, если записей нет)
      */
     List<User> findAll();
+
     /**
      * Обновляет данные существующего пользователя.
      *
@@ -37,6 +41,7 @@ public interface UserDao {
      * @return обновлённый пользователь
      */
     User update(User user);
+
     /**
      * Удаляет пользователя по идентификатору.
      * Если пользователя с таким id нет, метод ничего не делает.
