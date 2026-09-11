@@ -22,7 +22,15 @@ public class UserDaoImpl implements UserDao {
 
     private static final Logger log = LoggerFactory.getLogger(UserDaoImpl.class);
 
-    private final SessionFactory sessionFactory = HibernateUtil.getSessionFactory();
+    private final SessionFactory sessionFactory;
+
+    public UserDaoImpl() {
+        this(HibernateUtil.getSessionFactory());
+    }
+
+    public UserDaoImpl(SessionFactory sessionFactory) {
+        this.sessionFactory = sessionFactory;
+    }
     /** {@inheritDoc} */
     @Override
     public User save(User user) {
