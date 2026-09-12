@@ -1,6 +1,8 @@
 package com.example;
 
-import com.example.dao.UserDao;
+import com.example.exception.UserNotFoundException;
+import com.example.service.UserService;
+import com.example.service.UserServiceImpl;
 import com.example.dao.UserDaoImpl;
 import com.example.entity.User;
 import com.example.util.HibernateUtil;
@@ -21,7 +23,7 @@ public class Main {
 
     private static final Logger log = LoggerFactory.getLogger(Main.class);
     private static final Scanner scanner = new Scanner(System.in);
-    private static final UserDao userDao = new UserDaoImpl();
+    private static final UserService userService = new UserServiceImpl(new UserDaoImpl());
     /**
      * Запускает консольное меню. Работает, пока пользователь не выберет пункт "0".
      * Перед завершением закрывает SessionFactory.
@@ -70,23 +72,25 @@ public class Main {
         String email = readString("Email: ");
         int age = readInt("Возраст: ");
 
-        User user = new User(name, email, age);
-        userDao.save(user);
-        System.out.println("Создан пользователь: " + user);
+        try {
+            User user = userService.createUser(name, email, age);
+            System.out.println("Создан пользователь: " + user);
+        } catch (IllegalArgumentException e) {
+            System.out.println("Ошибка: " + e.getMessage());
+        }
     }
     /** Ищет пользователя по id и печатает результат. */
     private static void findUser() {
         long id = readLong("Введите ID: ");
-        Optional<User> user = userDao.findById(id);
-        if (user.isPresent()) {
-            System.out.println("Найден: " + user.get());
-        } else {
-            System.out.println("Пользователь с id=" + id + " не найден.");
+        try {
+            System.out.println("Найден: " + userService.getUserById(id));
+        } catch (UserNotFoundException e) {
+            System.out.println(e.getMessage());
         }
     }
     /** Печатает список всех пользователей. */
     private static void showAllUsers() {
-        List<User> users = userDao.findAll();
+        List<User> users = userService.getAllUsers();
         if (users.isEmpty()) {
             System.out.println("Пользователей пока нет.");
         } else {
@@ -98,43 +102,39 @@ public class Main {
     /** Обновляет поля существующего пользователя. Пустой ввод оставляет старое значение. */
     private static void updateUser() {
         long id = readLong("Введите ID пользователя: ");
-        Optional<User> found = userDao.findById(id);
-
-        if (found.isEmpty()) {
-            System.out.println("Пользователь с id=" + id + " не найден.");
-            return;
-        }
-
-        User user = found.get();
-        System.out.println("Текущие данные: " + user);
 
         String name = readString("Новое имя (Enter — оставить без изменений): ");
-        if (!name.isBlank()) {
-            user.setName(name);
-        }
-
         String email = readString("Новый email (Enter — оставить без изменений): ");
-        if (!email.isBlank()) {
-            user.setEmail(email);
-        }
-
         String ageText = readString("Новый возраст (Enter — оставить без изменений): ");
+
+        Integer age = null;
         if (!ageText.isBlank()) {
             try {
-                user.setAge(Integer.parseInt(ageText.trim()));
+                age = Integer.parseInt(ageText.trim());
             } catch (NumberFormatException e) {
                 System.out.println("Возраст не распознан, оставляю старый.");
             }
         }
 
-        userDao.update(user);
-        System.out.println("Обновлено: " + user);
+        try {
+            User updated = userService.updateUser(id,
+                    name.isBlank() ? null : name,
+                    email.isBlank() ? null : email,
+                    age);
+            System.out.println("Обновлено: " + updated);
+        } catch (UserNotFoundException e) {
+            System.out.println(e.getMessage());
+        }
     }
     /** Удаляет пользователя по id. */
     private static void deleteUser() {
         long id = readLong("Введите ID пользователя: ");
-        userDao.deleteById(id);
-        System.out.println("Готово.");
+        try {
+            userService.deleteUser(id);
+            System.out.println("Готово.");
+        } catch (UserNotFoundException e) {
+            System.out.println(e.getMessage());
+        }
     }
     /**
      * Читает целое число из консоли.
