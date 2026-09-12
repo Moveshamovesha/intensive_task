@@ -23,7 +23,7 @@
 - Код попадает в `develop` только через Pull Request с 2 ревьюерами.
 - Javadoc для классов и публичных методов, однострочные комментарии `//` для пояснений.
 
-## Состав команды и распределение задач
+## Состав команды и распределение задач на задание User Service
 
 | Участник                | Роль | Задачи |
 |-------------------------|---|---|
@@ -33,11 +33,16 @@
 
 ### Фича-ветки
 
-- `feature/project-setup` — pom.xml, hibernate.cfg.xml, HibernateUtil, сущность User (тимлид)
-- `feature/user-dao` — UserDao + UserDaoImpl (Александр, доработка — тимлид)
-- `feature/console-ui` — консольное меню (Сергей, доработка — тимлид)
+- `feature/project-setup` — pom.xml, hibernate.cfg.xml, HibernateUtil, сущность User (Константин)
+- `feature/user-dao` — UserDao + UserDaoImpl (Александр, доработка — Константин)
+- `feature/console-ui` — консольное меню (Сергей, доработка — Константин)
 - `feature/logging` — logback.xml (Сергей)
-- `bugfix/fix-dao-and-menu` — исправления после код-ревью (тимлид)
+- `bugfix/fix-dao-and-menu` — исправления после код-ревью (Константин)
+- `feature/test-setup` — тестовые зависимости, плагины, конструктор в UserDaoImpl (Константин)
+- `feature/user-service` — Service-слой и перевод Main на него (Сергей)
+- `feature/service-unit-tests` — юнит-тесты сервиса на Mockito (Сергей)
+- `feature/dao-integration-tests` — интеграционные тесты DAO на Testcontainers (Александр)
+- `bugfix/add-missing-service-layer` — восстановление потерянного Service-слоя
 
 ### Git-регламент
 
@@ -54,21 +59,47 @@ user-service/
 ├── pom.xml
 ├── README.md
 └── src/
-    └── main/
-        ├── java/com/example/
-        │   ├── Main.java              — консольное меню (Сергей)
-        │   ├── entity/
-        │   │   └── User.java          — сущность (тимлид)
-        │   ├── dao/
-        │   │   ├── UserDao.java       — интерфейс DAO (Александр)
-        │   │   └── UserDaoImpl.java   — реализация DAO (Александр)
-        │   └── util/
-        │       └── HibernateUtil.java — фабрика сессий (тимлид)
-        └── resources/
-            ├── hibernate.cfg.xml      — конфигурация Hibernate (тимлид)
-            └── logback.xml            — настройка логирования (Сергей)
+    ├── main/
+    │   ├── java/com/example/
+    │   │   ├── Main.java                    — консольное меню, работает через UserService (Сергей)
+    │   │   ├── entity/
+    │   │   │   └── User.java                — сущность (Константин)
+    │   │   ├── dao/
+    │   │   │   ├── UserDao.java             — интерфейс DAO (Александр)
+    │   │   │   └── UserDaoImpl.java         — реализация DAO, SessionFactory через конструктор (Александр, доработка — Константин)
+    │   │   ├── service/
+    │   │   │   ├── UserService.java         — интерфейс сервиса: валидация и бизнес-логика (Сергей)
+    │   │   │   └── UserServiceImpl.java     — реализация сервиса (Сергей)
+    │   │   ├── exception/
+    │   │   │   └── UserNotFoundException.java — ошибка «пользователь не найден» (Константин)
+    │   │   └── util/
+    │   │       └── HibernateUtil.java       — фабрика сессий (Константин)
+    │   └── resources/
+    │       ├── hibernate.cfg.xml            — конфигурация Hibernate (Константин)
+    │       └── logback.xml                  — настройка логирования (Сергей)
+    └── test/
+        └── java/com/example/
+            ├── dao/
+            │   └── UserDaoImplIT.java       — интеграционные тесты DAO, Testcontainers + PostgreSQL (Александр)
+            └── service/
+                └── UserServiceImplTest.java — юнит-тесты сервиса, Mockito (Сергей)
 ```
+## Тестирование
 
+- Юнит-тесты Service-слоя (Mockito, без базы данных): `mvn test`
+- Интеграционные тесты DAO-слоя (Testcontainers, нужен запущенный Docker): `mvn verify`
+- Изоляция тестов: юнит-тесты получают новые моки в каждом методе, интеграционные очищают таблицу перед каждым тестом и работают в одноразовом контейнере PostgreSQL.
+
+## Состав команды и распределение задач
+**Задание 2: тестирование (JUnit 5 + Mockito + Testcontainers)**
+
+| Участник        | Роль | Задачи                                                                                                                                                                                                                         |
+|-----------------|---|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Ким Константин  | Тестовая инфраструктура, рефакторинг, Git | Тестовые зависимости в pom.xml (JUnit 5, Mockito, Testcontainers), плагины surefire/failsafe; рефакторинг UserDaoImpl (SessionFactory через конструктор); UserNotFoundException; раздел «Тестирование» в README; ревью всех PR |
+| Сергей Ибрагимов (тимлид) | Service-слой, юнит-тесты | Интерфейс UserService и класс UserServiceImpl (валидация, бизнес-логика); перевод консольного меню Main на сервис; юнит-тесты UserServiceImplTest с Mockito (11 тестов)                                                        |
+| Александр Куприенко | Интеграционные тесты DAO | Класс UserDaoImplIT: контейнер PostgreSQL через Testcontainers, программная настройка SessionFactory, очистка таблицы перед каждым тестом, покрытие всех CRUD-операций (8 тестов)                                              |
+
+Порядок выполнения: feature/test-setup → параллельно feature/user-service и feature/dao-integration-tests → feature/service-unit-tests → bugfix/add-missing-service-layer → develop.
 ## Запуск проекта
 
 1. Установить PostgreSQL и создать базу данных:
