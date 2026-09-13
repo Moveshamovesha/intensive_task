@@ -100,7 +100,6 @@ public class UserDaoImpl implements UserDao {
         try (Session session = sessionFactory.openSession()) {
             transaction = session.beginTransaction();
             User user = session.find(User.class, id);
-            User user = session.find(User.class, id);
             if (user == null) {
                 log.warn("Пользователь с id={} не найден, удалять нечего", id);
                 return;
