@@ -106,7 +106,7 @@ user-service/
    ```sql
    CREATE DATABASE user_db;
    ```
-2. Прописать свои логин/пароль от PostgreSQL в `src/main/resources/hibernate.cfg.xml`.
+2. Задать переменные окружения `DB_USER` и `DB_PASSWORD` (логин и пароль от вашего локального PostgreSQL). В IntelliJ IDEA: Run → Edit Configurations → Main → Environment variables → `DB_USER=postgres;DB_PASSWORD=ваш_пароль`.
 3. Собрать проект:
    ```bash
    mvn clean compile
