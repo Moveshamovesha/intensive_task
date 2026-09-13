@@ -100,12 +100,13 @@ public class UserDaoImpl implements UserDao {
         try (Session session = sessionFactory.openSession()) {
             transaction = session.beginTransaction();
             User user = session.find(User.class, id);
-            if (user != null) {
-                session.remove(user);
-                log.info("Пользователь удалён: id={}", id);
-            } else {
+            User user = session.find(User.class, id);
+            if (user == null) {
                 log.warn("Пользователь с id={} не найден, удалять нечего", id);
+                return;
             }
+            session.remove(user);
+            log.info("Пользователь удалён: id={}", id);
             transaction.commit();
         } catch (Exception e) {
             rollbackQuietly(transaction);
@@ -121,7 +122,7 @@ public class UserDaoImpl implements UserDao {
      * @param transaction транзакция или null, если она не была начата
      */
     private void rollbackQuietly(Transaction transaction) {
-        if (transaction != null && transaction.isActive()) {
+        if (transaction != null && transaction.getStatus().canRollback()) {
             transaction.rollback();
         }
     }
