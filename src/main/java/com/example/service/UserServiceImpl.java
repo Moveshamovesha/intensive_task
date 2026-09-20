@@ -1,62 +1,66 @@
 package com.example.service;
 
-import com.example.dao.UserDao;
+import com.example.dto.UserCreateRequest;
+import com.example.dto.UserResponse;
+import com.example.dto.UserUpdateRequest;
 import com.example.entity.User;
 import com.example.exception.UserNotFoundException;
+import com.example.mapper.UserMapper;
+import com.example.repository.UserRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+@Service
+@Transactional
 public class UserServiceImpl implements UserService {
 
-    private final UserDao userDao;
+    private final UserRepository userRepository;
+    private final UserMapper userMapper;
 
-    public UserServiceImpl(UserDao userDao) {
-        this.userDao = userDao;
+    public UserServiceImpl(UserRepository userRepository, UserMapper userMapper) {
+        this.userRepository = userRepository;
+        this.userMapper = userMapper;
     }
 
     @Override
-    public User createUser(String name, String email, Integer age) {
-        if (name == null || name.isBlank()) {
-            throw new IllegalArgumentException("Имя не должно быть пустым");
-        }
-        if (email == null || !email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
-            throw new IllegalArgumentException("Некорректный email");
-        }
-        if (age != null && (age < 0 || age > 150)) {
-            throw new IllegalArgumentException("Некорректный возраст");
-        }
-        return userDao.save(new User(name, email, age));
+    @Transactional(readOnly = true)
+    public List<UserResponse> getAll() {
+        return userRepository.findAll().stream()
+                .map(userMapper::toResponse)
+                .toList();
     }
 
     @Override
-    public User getUserById(Long id) {
-        return userDao.findById(id)
+    @Transactional(readOnly = true)
+    public UserResponse getById(Long id) {
+        return userRepository.findById(id)
+                .map(userMapper::toResponse)
                 .orElseThrow(() -> new UserNotFoundException("Пользователь не найден: id=" + id));
     }
 
     @Override
-    public List<User> getAllUsers() {
-        return userDao.findAll();
+    public UserResponse create(UserCreateRequest request) {
+        User user = userMapper.toEntity(request);
+        User saved = userRepository.save(user);
+        return userMapper.toResponse(saved);
     }
 
     @Override
-    public User updateUser(Long id, String name, String email, Integer age) {
-        User user = getUserById(id);
-        if (name != null && !name.isBlank()) {
-            user.setName(name);
-        }
-        if (email != null && !email.isBlank()) {
-            user.setEmail(email);
-        }
-        if (age != null) {
-            user.setAge(age);
-        }
-        return userDao.update(user);
+    public UserResponse update(Long id, UserUpdateRequest request) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException("Пользователь не найден: id=" + id));
+        userMapper.updateEntity(request, user);
+        User saved = userRepository.save(user);
+        return userMapper.toResponse(saved);
     }
 
     @Override
-    public void deleteUser(Long id) {
-        getUserById(id);
-        userDao.deleteById(id);
+    public void delete(Long id) {
+        if (!userRepository.existsById(id)) {
+            throw new UserNotFoundException("Пользователь не найден: id=" + id);
+        }
+        userRepository.deleteById(id);
     }
 }

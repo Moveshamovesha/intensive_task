@@ -116,3 +116,70 @@ user-service/
 ## Сложности и вопросы
 
 *(раздел обновляется по ходу работы)*
+
+## Название модуля и текст домашнего задания
+**Задание 4: Spring Boot + Spring Data JPA + REST API**
+
+**Задание:** Добавить в user-service поддержку Spring и разработать API,
+которое позволит управлять данными.
+
+**Требования:**
+- Подключить необходимые модули Spring (Boot, Web, Data JPA и др.).
+- Реализовать REST API для получения, создания, обновления и удаления пользователя.
+- Entity не должен возвращаться из контроллера — использовать DTO.
+- Заменить Hibernate на Spring Data JPA.
+- Написать тесты для API (MockMvc или другие средства).
+
+## Состав команды и распределение задач
+**Задание 4: Spring Boot + Spring Data JPA + REST API**
+
+| Участник              | Роль                          | Задачи                                                                                                                                        |
+|-----------------------|-------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
+| Александр (тимлид)    | Архитектура, инфраструктура   | pom.xml, application.properties, UserServiceApplication, сервис, юнит-тест сервиса, интеграционный тест, снос legacy, ревью и мёрдж, README   |
+| Сергей Ибрагимов      | Слой данных                   | Entity (правки), DTO, репозиторий, маппер                                                                                                     |
+| Ким Константин        | Слой API                      | Контроллер, GlobalExceptionHandler, ErrorResponse, кастомные исключения, тесты контроллера (@WebMvcTest)                                      |
+
+## Структура проекта
+**Задание 4: Spring Boot + Spring Data JPA + REST API**
+
+user-service/
+├── pom.xml
+├── README.md
+└── src/
+├── main/
+│   ├── java/com/example/
+│   │   ├── UserServiceApplication.java      — точка входа Spring Boot
+│   │   ├── entity/
+│   │   │   └── User.java                    — сущность (Сергей)
+│   │   ├── dto/
+│   │   │   ├── UserRequestDto.java          — входящий DTO (Сергей)
+│   │   │   └── UserResponseDto.java         — исходящий DTO (Сергей)
+│   │   ├── mapper/
+│   │   │   └── UserMapper.java              — маппер Entity ↔ DTO (Сергей)
+│   │   ├── repository/
+│   │   │   └── UserRepository.java          — Spring Data JPA репозиторий (Сергей)
+│   │   ├── service/
+│   │   │   ├── UserService.java             — интерфейс сервиса (Александр)
+│   │   │   └── UserServiceImpl.java         — реализация сервиса (Александр)
+│   │   ├── controller/
+│   │   │   └── UserController.java          — REST контроллер (Константин)
+│   │   └── exception/
+│   │       ├── UserNotFoundException.java   — кастомное исключение (Константин)
+│   │       ├── ErrorResponse.java           — модель ошибки (Константин)
+│   │       └── GlobalExceptionHandler.java  — обработчик исключений (Константин)
+│   └── resources/
+│       ├── application.properties           — конфигурация Spring Boot (Александр)
+│       └── logback.xml                      — настройка логирования
+└── test/
+└── java/com/example/
+├── controller/
+│   └── UserControllerTest.java      — тесты контроллера @WebMvcTest (Константин)
+└── service/
+└── UserServiceImplTest.java     — юнит-тесты сервиса (Александр)
+
+## Запуск проекта
+**Задание 4: Spring Boot + Spring Data JPA + REST API**
+
+1. Установить PostgreSQL и создать базу данных:
+   ```sql
+   CREATE DATABASE user_db;

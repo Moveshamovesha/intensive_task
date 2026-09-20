@@ -1,8 +1,12 @@
 package com.example.service;
 
-import com.example.dao.UserDao;
+import com.example.dto.UserCreateRequest;
+import com.example.dto.UserResponse;
+import com.example.dto.UserUpdateRequest;
 import com.example.entity.User;
 import com.example.exception.UserNotFoundException;
+import com.example.mapper.UserMapper;
+import com.example.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -12,131 +16,113 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceImplTest {
 
     @Mock
-    private UserDao userDao;
+    private UserRepository userRepository;
+
+    @Mock
+    private UserMapper userMapper;
 
     @InjectMocks
     private UserServiceImpl userService;
 
     @Test
-    void createUser_validData_savesUser() {
-        when(userDao.save(any(User.class))).thenAnswer(invocation -> {
-            User u = invocation.getArgument(0);
-            u.setId(1L);
-            return u;
-        });
+    void getAll_shouldReturnListOfUserResponses() {
+        User user = new User();
+        UserResponse response = new UserResponse();
+        when(userRepository.findAll()).thenReturn(List.of(user));
+        when(userMapper.toResponse(user)).thenReturn(response);
 
-        User result = userService.createUser("Ivan", "ivan@mail.com", 25);
+        List<UserResponse> result = userService.getAll();
 
-        assertEquals(1L, result.getId());
-        assertEquals("Ivan", result.getName());
-        assertEquals("ivan@mail.com", result.getEmail());
-        assertEquals(25, result.getAge());
-        verify(userDao, times(1)).save(any(User.class));
+        assertThat(result).hasSize(1).contains(response);
     }
 
     @Test
-    void createUser_emptyName_throwsException() {
-        assertThrows(IllegalArgumentException.class,
-                () -> userService.createUser("", "ivan@mail.com", 25));
-        verifyNoInteractions(userDao);
+    void getById_shouldReturnUserResponse_whenUserExists() {
+        User user = new User();
+        UserResponse response = new UserResponse();
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userMapper.toResponse(user)).thenReturn(response);
+
+        UserResponse result = userService.getById(1L);
+
+        assertThat(result).isEqualTo(response);
     }
 
     @Test
-    void createUser_invalidEmail_throwsException() {
-        assertThrows(IllegalArgumentException.class,
-                () -> userService.createUser("Ivan", "not-an-email", 25));
-        verifyNoInteractions(userDao);
+    void getById_shouldThrowUserNotFoundException_whenUserNotFound() {
+        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.getById(1L))
+                .isInstanceOf(UserNotFoundException.class)
+                .hasMessageContaining("1");
     }
 
     @Test
-    void createUser_invalidAge_throwsException() {
-        assertThrows(IllegalArgumentException.class,
-                () -> userService.createUser("Ivan", "ivan@mail.com", -5));
-        verifyNoInteractions(userDao);
+    void create_shouldSaveAndReturnUserResponse() {
+        UserCreateRequest request = new UserCreateRequest();
+        User user = new User();
+        User saved = new User();
+        UserResponse response = new UserResponse();
+
+        when(userMapper.toEntity(request)).thenReturn(user);
+        when(userRepository.save(user)).thenReturn(saved);
+        when(userMapper.toResponse(saved)).thenReturn(response);
+
+        UserResponse result = userService.create(request);
+
+        assertThat(result).isEqualTo(response);
+        verify(userRepository).save(user);
     }
 
     @Test
-    void getUserById_existingId_returnsUser() {
-        User user = new User("Ivan", "ivan@mail.com", 25);
-        user.setId(1L);
-        when(userDao.findById(1L)).thenReturn(Optional.of(user));
+    void update_shouldUpdateAndReturnUserResponse() {
+        UserUpdateRequest request = new UserUpdateRequest();
+        User user = new User();
+        User saved = new User();
+        UserResponse response = new UserResponse();
 
-        User result = userService.getUserById(1L);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepository.save(user)).thenReturn(saved);
+        when(userMapper.toResponse(saved)).thenReturn(response);
 
-        assertEquals(1L, result.getId());
-        assertEquals("Ivan", result.getName());
+        UserResponse result = userService.update(1L, request);
+
+        assertThat(result).isEqualTo(response);
+        verify(userMapper).updateEntity(request, user);
     }
 
     @Test
-    void getUserById_missingId_throwsUserNotFoundException() {
-        when(userDao.findById(99L)).thenReturn(Optional.empty());
+    void update_shouldThrowUserNotFoundException_whenUserNotFound() {
+        when(userRepository.findById(1L)).thenReturn(Optional.empty());
 
-        assertThrows(UserNotFoundException.class, () -> userService.getUserById(99L));
+        assertThatThrownBy(() -> userService.update(1L, new UserUpdateRequest()))
+                .isInstanceOf(UserNotFoundException.class)
+                .hasMessageContaining("1");
     }
 
     @Test
-    void getAllUsers_returnsListFromDao() {
-        when(userDao.findAll()).thenReturn(List.of(
-                new User("Ivan", "ivan@mail.com", 25),
-                new User("Maria", "maria@mail.com", 30)));
+    void delete_shouldDeleteUser_whenUserExists() {
+        when(userRepository.existsById(1L)).thenReturn(true);
 
-        List<User> result = userService.getAllUsers();
+        userService.delete(1L);
 
-        assertEquals(2, result.size());
+        verify(userRepository).deleteById(1L);
     }
 
     @Test
-    void updateUser_existingUser_updatesOnlyGivenFields() {
-        User existing = new User("Old name", "old@mail.com", 20);
-        existing.setId(1L);
-        when(userDao.findById(1L)).thenReturn(Optional.of(existing));
-        when(userDao.update(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    void delete_shouldThrowUserNotFoundException_whenUserNotFound() {
+        when(userRepository.existsById(1L)).thenReturn(false);
 
-        User result = userService.updateUser(1L, "New name", null, null);
-
-        assertEquals("New name", result.getName());
-        assertEquals("old@mail.com", result.getEmail());
-        assertEquals(20, result.getAge());
-        verify(userDao, times(1)).update(existing);
-    }
-
-    @Test
-    void updateUser_missingUser_throwsAndDoesNotUpdate() {
-        when(userDao.findById(1L)).thenReturn(Optional.empty());
-
-        assertThrows(UserNotFoundException.class,
-                () -> userService.updateUser(1L, "New name", null, null));
-        verify(userDao, never()).update(any(User.class));
-    }
-
-    @Test
-    void deleteUser_existingUser_callsDaoDelete() {
-        when(userDao.findById(1L)).thenReturn(Optional.of(new User("Ivan", "ivan@mail.com", 25)));
-
-        userService.deleteUser(1L);
-
-        verify(userDao, times(1)).deleteById(1L);
-    }
-
-    @Test
-    void deleteUser_missingUser_throwsAndDoesNotDelete() {
-        when(userDao.findById(1L)).thenReturn(Optional.empty());
-
-        assertThrows(UserNotFoundException.class, () -> userService.deleteUser(1L));
-        verify(userDao, never()).deleteById(anyLong());
+        assertThatThrownBy(() -> userService.delete(1L))
+                .isInstanceOf(UserNotFoundException.class)
+                .hasMessageContaining("1");
     }
 }
