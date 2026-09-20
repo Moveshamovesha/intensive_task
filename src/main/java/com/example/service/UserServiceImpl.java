@@ -4,6 +4,7 @@ import com.example.dto.UserCreateRequest;
 import com.example.dto.UserResponse;
 import com.example.dto.UserUpdateRequest;
 import com.example.entity.User;
+import com.example.exception.EmailAlreadyExistsException;
 import com.example.exception.UserNotFoundException;
 import com.example.mapper.UserMapper;
 import com.example.repository.UserRepository;
@@ -42,6 +43,9 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserResponse create(UserCreateRequest request) {
+        if (userRepository.existsByEmail(request.email())) {
+            throw new EmailAlreadyExistsException(request.email());
+        }
         User user = userMapper.toEntity(request);
         User saved = userRepository.save(user);
         return userMapper.toResponse(saved);
@@ -51,7 +55,12 @@ public class UserServiceImpl implements UserService {
     public UserResponse update(Long id, UserUpdateRequest request) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new UserNotFoundException("Пользователь не найден: id=" + id));
-        userMapper.updateEntity(request, user);
+        userRepository.findByEmail(request.email())
+                .filter(existing -> !existing.getId().equals(id))
+                .ifPresent(existing -> {
+                    throw new EmailAlreadyExistsException(request.email());
+                });
+        userMapper.updateEntity(user, request);
         User saved = userRepository.save(user);
         return userMapper.toResponse(saved);
     }

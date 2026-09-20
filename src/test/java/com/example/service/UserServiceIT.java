@@ -50,30 +50,20 @@ class UserServiceIT {
 
     @Test
     void create_shouldSaveUserToDatabase() {
-        UserCreateRequest request = new UserCreateRequest();
-        request.setName("Test User");
-        request.setEmail("testuser@example.com");
-        request.setAge(25);
+        UserCreateRequest request = new UserCreateRequest("Test User", "testuser@example.com", 25);
 
         UserResponse response = userService.create(request);
 
-        assertThat(response.getId()).isNotNull();
-        assertThat(response.getName()).isEqualTo("Test User");
-        assertThat(response.getEmail()).isEqualTo("testuser@example.com");
+        assertThat(response.id()).isNotNull();
+        assertThat(response.name()).isEqualTo("Test User");
+        assertThat(response.email()).isEqualTo("testuser@example.com");
         assertThat(userRepository.count()).isEqualTo(1);
     }
 
     @Test
     void getAll_shouldReturnAllUsers() {
-        UserCreateRequest request1 = new UserCreateRequest();
-        request1.setName("Test User 1");
-        request1.setEmail("testuser1@example.com");
-        request1.setAge(25);
-
-        UserCreateRequest request2 = new UserCreateRequest();
-        request2.setName("Test User 2");
-        request2.setEmail("testuser2@example.com");
-        request2.setAge(26);
+        UserCreateRequest request1 = new UserCreateRequest("Test User 1", "testuser1@example.com", 25);
+        UserCreateRequest request2 = new UserCreateRequest("Test User 2", "testuser2@example.com", 26);
 
         userService.create(request1);
         userService.create(request2);
@@ -85,16 +75,13 @@ class UserServiceIT {
 
     @Test
     void getById_shouldReturnUser_whenExists() {
-        UserCreateRequest request = new UserCreateRequest();
-        request.setName("Test User");
-        request.setEmail("testuser@example.com");
-        request.setAge(25);
+        UserCreateRequest request = new UserCreateRequest("Test User", "testuser@example.com", 25);
 
         UserResponse created = userService.create(request);
-        UserResponse found = userService.getById(created.getId());
+        UserResponse found = userService.getById(created.id());
 
-        assertThat(found.getId()).isEqualTo(created.getId());
-        assertThat(found.getName()).isEqualTo("Test User");
+        assertThat(found.id()).isEqualTo(created.id());
+        assertThat(found.name()).isEqualTo("Test User");
     }
 
     @Test
@@ -106,33 +93,24 @@ class UserServiceIT {
 
     @Test
     void update_shouldUpdateUserInDatabase() {
-        UserCreateRequest createRequest = new UserCreateRequest();
-        createRequest.setName("Test User");
-        createRequest.setEmail("testuser@example.com");
-        createRequest.setAge(25);
+        UserCreateRequest createRequest = new UserCreateRequest("Test User", "testuser@example.com", 25);
 
         UserResponse created = userService.create(createRequest);
 
-        UserUpdateRequest updateRequest = new UserUpdateRequest();
-        updateRequest.setName("Updated User");
-        updateRequest.setEmail("updateduser@example.com");
-        updateRequest.setAge(26);
+        UserUpdateRequest updateRequest = new UserUpdateRequest("Updated User", "updateduser@example.com", 30);
 
-        UserResponse updated = userService.update(created.getId(), updateRequest);
+        UserResponse updated = userService.update(created.id(), updateRequest);
 
-        assertThat(updated.getName()).isEqualTo("Updated User");
-        assertThat(updated.getEmail()).isEqualTo("updateduser@example.com");
+        assertThat(updated.name()).isEqualTo("Updated User");
+        assertThat(updated.email()).isEqualTo("updateduser@example.com");
     }
 
     @Test
     void delete_shouldRemoveUserFromDatabase() {
-        UserCreateRequest request = new UserCreateRequest();
-        request.setName("Test User");
-        request.setEmail("testuser@example.com");
-        request.setAge(25);
+        UserCreateRequest request = new UserCreateRequest("Test User", "testuser@example.com", 25);
 
         UserResponse created = userService.create(request);
-        userService.delete(created.getId());
+        userService.delete(created.id());
 
         assertThat(userRepository.count()).isEqualTo(0);
     }
