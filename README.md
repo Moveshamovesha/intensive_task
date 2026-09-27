@@ -183,3 +183,113 @@ user-service/
 1. Установить PostgreSQL и создать базу данных:
    ```sql
    CREATE DATABASE user_db;
+## Название модуля и текст домашнего задания
+**Задание 5: Kafka + Notification Service**
+
+Реализовать микросервис (notification-service) для отправки сообщения на почту при удалении или добавлении пользователя.
+
+При удалении или создании юзера приложение user-service отправляет сообщение в Kafka, в котором содержится информация об операции (удаление или создание) и email юзера. Микросервис notification-service получает сообщение из Kafka и отправляет письмо в зависимости от операции: удаление — «Здравствуйте! Ваш аккаунт был удалён.», создание — «Здравствуйте! Ваш аккаунт на сайте ваш сайт был успешно создан.». Отдельно реализован API для отправки сообщения на почту (тот же функционал, что и через Kafka). Написаны интеграционные тесты для проверки отправки сообщения на почту.
+
+## Состав команды и распределение задач
+**Задание 5: Kafka + Notification Service**
+
+| Участник | Роль | Задачи |
+| --- | --- | --- |
+| Ким Константин (тимлид) | Инфраструктура, архитектура, Git | docker-compose с Kafka; разделение проекта на модули user-service и notification-service; восстановление pom.xml (JDBC-драйвер, Testcontainers, failsafe) и настроек БД; стабилизация тестов; README; ревью всех PR |
+| Александр Куприенко | Продюсер (user-service) | UserEvent, UserOperation; отправка событий в Kafka из UserServiceImpl при создании и удалении юзера; юнит-тесты отправки событий (Mockito + ArgumentCaptor) |
+| Сергей Ибрагимов | Консьюмер и почта (notification-service) | UserEventConsumer, EmailService, NotificationController + EmailRequest; интеграционный тест отправки почты EmailServiceIT (GreenMail) |
+
+### Фича-ветки
+- `kafka-producer` — событие и отправка сообщений при create/delete (Александр)
+- `feature/kafka-consumer` — консьюмер и EmailService (Сергей)
+- `feature/notification-api` — REST API отправки письма (Сергей)
+- `producer-test` — юнит-тесты продюсера (Александр)
+- `feature/email-integration-tests` — EmailServiceIT (Сергей)
+- `bugfix/restore-build` — восстановление зависимостей и настроек БД (Константин)
+- `bugfix/fix-tests` — стабилизация тестов после внедрения Kafka (Константин)
+- `bugfix/kafka-deserialization` — настройка десериализации, сеттеры в событиях, логирование (Константин)
+- `feature/multi-module-split` — разделение на два микросервиса (Константин)
+- `feature/kafka-email-flow-test` — сквозной тест Kafka → письмо (Константин)
+
+## Контракт сообщения
+Топик: `user-events`. Формат JSON:
+
+```json
+{"email": "ivan@mail.com", "userOperation": "CREATE"}
+{"email": "ivan@mail.com", "userOperation": "DELETE"}
+```
+
+Типовые заголовки Kafka не используются (`spring.json.use.type.headers=false`): консьюмер распаковывает сообщение в свой собственный класс и не зависит от классов user-service. Топик создаётся автоматически при первом сообщении.
+
+## Структура проекта
+**Задание 5: Kafka + Notification Service**
+
+```
+intensive-task/
+├── pom.xml                              — родительский pom, модули (Константин)
+├── docker-compose.yml                   — Kafka, режим KRaft (Константин)
+├── user-service/
+│   ├── pom.xml                          — web, validation, data-jpa, kafka, postgresql, testcontainers (Константин)
+│   └── src/
+│       ├── main/java/com/example/
+│       │   ├── UserServiceApplication.java
+│       │   ├── controller/UserController.java
+│       │   ├── dto/                     — UserCreateRequest, UserUpdateRequest, UserResponse
+│       │   ├── entity/User.java
+│       │   ├── event/                   — UserEvent, UserOperation (Александр)
+│       │   ├── exception/
+│       │   ├── mapper/UserMapper.java
+│       │   ├── repository/UserRepository.java
+│       │   └── service/                 — UserService, UserServiceImpl: отправка в Kafka при create/delete (Александр)
+│       ├── main/resources/application.properties
+│       └── test/java/com/example/
+│           ├── controller/UserControllerTest.java
+│           └── service/                 — UserServiceImplTest (юнит, Mockito), UserServiceIT (Testcontainers)
+└── notification-service/
+    ├── pom.xml                          — web, validation, kafka, mail, greenmail, awaitility (Константин)
+    └── src/
+        ├── main/java/com/example/notificationservice/
+        │   ├── NotificationServiceApplication.java
+        │   ├── consumer/UserEventConsumer.java     — слушатель топика user-events (Сергей)
+        │   ├── controller/NotificationController.java — POST /api/notifications/email (Сергей)
+        │   ├── dto/EmailRequest.java               (Сергей)
+        │   ├── event/                              — UserEvent, UserOperation (Сергей)
+        │   └── service/EmailService.java           — отправка писем (Сергей)
+        ├── main/resources/application.properties
+        └── test/java/com/example/notificationservice/
+            ├── NotificationFlowIT.java             — сквозной тест Kafka → письмо (EmbeddedKafka + GreenMail)
+            └── service/EmailServiceIT.java         — тест отправки почты (Сергей)
+```
+
+## Запуск проекта
+**Задание 5: Kafka + Notification Service**
+
+1. Поднять Kafka:
+   ```bash
+   docker compose up -d
+   ```
+2. Установить PostgreSQL и создать базу данных:
+   ```sql
+   CREATE DATABASE user_db;
+   ```
+3. Задать переменные окружения:
+   - `DB_USER`, `DB_PASSWORD` — логин и пароль локального PostgreSQL;
+   - `MAIL_USERNAME` — Gmail-адрес, с которого уходят письма;
+   - `MAIL_PASSWORD` — пароль приложения Gmail (Google-аккаунт → Безопасность → Двухэтапная аутентификация → Пароли приложений; обычный пароль не подойдёт).
+4. Запустить `UserServiceApplication` (порт 8080), затем `NotificationServiceApplication` (порт 8081).
+5. Проверка:
+   - `POST /api/users` → на email юзера приходит «Здравствуйте! Ваш аккаунт на сайте ваш сайт был успешно создан.»
+   - `DELETE /api/users/{id}` → приходит «Здравствуйте! Ваш аккаунт был удалён.»
+   - `POST /api/notifications/email` с телом `{"to": "...", "subject": "...", "text": "..."}` → произвольное письмо (API работает напрямую, минуя Kafka)
+
+## Тестирование
+- `mvn clean verify` — все тесты обоих модулей (юнит-тесты через surefire, интеграционные `*IT` через failsafe).
+- `UserServiceIT` требует запущенный Docker (Testcontainers поднимает одноразовый PostgreSQL); отправка в Kafka в нём замокирована через `@MockBean`.
+- Почтовые тесты Docker не требуют:
+   - `EmailServiceIT` — отправка письма напрямую через EmailService, ловушка GreenMail;
+   - `NotificationFlowIT` — сквозной сценарий: сообщение в топик `user-events` (EmbeddedKafka) → консьюмер → письмо с текстом в зависимости от операции (GreenMail, ожидание через Awaitility).
+
+## Сложности и вопросы
+- Десериализация событий: по умолчанию JsonDeserializer доверяет типовым заголовкам продюсера и списку trusted packages. Решение: `use.type.headers=false` + `value.default.type` + корректный `trusted.packages` — консьюмер не зависит от классов user-service.
+- У классов событий должны быть сеттеры: без них Jackson создаёт объект с полями null.
+- Отправка в Kafka выполняется после коммита операции с БД, чтобы не разослать уведомления о несостоявшихся событиях. Известное узкое место: если брокер недоступен в момент отправки, событие теряется; production-решение — паттерн Outbox.
