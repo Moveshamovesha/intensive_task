@@ -10,6 +10,7 @@ import com.example.exception.EmailAlreadyExistsException;
 import com.example.exception.UserNotFoundException;
 import com.example.mapper.UserMapper;
 import com.example.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -45,6 +46,11 @@ class UserServiceImplTest {
     @InjectMocks
     private UserServiceImpl userService;
 
+    @BeforeEach
+    void setUp() {
+        ReflectionTestUtils.setField(userService, "userEvents", "user-events");
+    }
+
     private User userWithId(Long id, String name, String email, Integer age) {
         User user = new User(name, email, age);
         ReflectionTestUtils.setField(user, "id", id);
@@ -74,11 +80,13 @@ class UserServiceImplTest {
     }
 
     @Test
-    void create_shouldSendKafkaEvent_whenUserCreated(){
+    void create_shouldSendKafkaEvent_whenUserCreated() {
         UserCreateRequest request = new UserCreateRequest("Ivan", "ivan@example.com", 25);
         when(userRepository.existsByEmail("ivan@example.com")).thenReturn(false);
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        UserResponse userResponse = userService.create(request);
+
+        userService.create(request);
+
         ArgumentCaptor<UserEvent> captor = ArgumentCaptor.forClass(UserEvent.class);
         verify(kafkaTemplate).send(any(String.class), captor.capture());
         UserEvent captured = captor.getValue();
@@ -130,17 +138,20 @@ class UserServiceImplTest {
 
     @Test
     void delete_throws_whenNotFound() {
-        when(userRepository.existsById(99L)).thenReturn(false);
+        when(userRepository.findById(99L)).thenReturn(Optional.empty());
 
         assertThrows(UserNotFoundException.class, () -> userService.delete(99L));
         verify(userRepository, never()).deleteById(any());
+        verify(kafkaTemplate, never()).send(any(), any());
     }
 
     @Test
     void delete_shouldSendKafkaEvent_whenUserDeleted() {
         User user = userWithId(1L, "Ivan", "ivan@example.com", 25);
         when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+
         userService.delete(user.getId());
+
         ArgumentCaptor<UserEvent> captor = ArgumentCaptor.forClass(UserEvent.class);
         verify(kafkaTemplate).send(any(String.class), captor.capture());
         UserEvent captured = captor.getValue();

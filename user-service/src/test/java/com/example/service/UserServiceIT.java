@@ -3,12 +3,15 @@ package com.example.service;
 import com.example.dto.UserCreateRequest;
 import com.example.dto.UserResponse;
 import com.example.dto.UserUpdateRequest;
+import com.example.event.UserEvent;
 import com.example.exception.UserNotFoundException;
 import com.example.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -42,6 +45,9 @@ class UserServiceIT {
 
     @Autowired
     private UserRepository userRepository;
+
+    @MockBean
+    private KafkaTemplate<String, UserEvent> kafkaTemplate;
 
     @BeforeEach
     void setUp() {
