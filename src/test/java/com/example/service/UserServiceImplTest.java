@@ -4,16 +4,20 @@ import com.example.dto.UserCreateRequest;
 import com.example.dto.UserResponse;
 import com.example.dto.UserUpdateRequest;
 import com.example.entity.User;
+import com.example.event.UserEvent;
+import com.example.event.UserOperation;
 import com.example.exception.EmailAlreadyExistsException;
 import com.example.exception.UserNotFoundException;
 import com.example.mapper.UserMapper;
 import com.example.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -31,6 +35,9 @@ class UserServiceImplTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private KafkaTemplate<String, UserEvent> kafkaTemplate;
 
     @Spy
     private UserMapper userMapper = new UserMapper();
@@ -64,6 +71,19 @@ class UserServiceImplTest {
 
         assertThrows(EmailAlreadyExistsException.class, () -> userService.create(request));
         verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void create_shouldSendKafkaEvent_whenUserCreated(){
+        UserCreateRequest request = new UserCreateRequest("Ivan", "ivan@example.com", 25);
+        when(userRepository.existsByEmail("ivan@example.com")).thenReturn(false);
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        UserResponse userResponse = userService.create(request);
+        ArgumentCaptor<UserEvent> captor = ArgumentCaptor.forClass(UserEvent.class);
+        verify(kafkaTemplate).send(any(String.class), captor.capture());
+        UserEvent captured = captor.getValue();
+        assertEquals("ivan@example.com", captured.getEmail());
+        assertEquals(UserOperation.CREATE, captured.getUserOperation());
     }
 
     @Test
@@ -114,5 +134,17 @@ class UserServiceImplTest {
 
         assertThrows(UserNotFoundException.class, () -> userService.delete(99L));
         verify(userRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void delete_shouldSendKafkaEvent_whenUserDeleted() {
+        User user = userWithId(1L, "Ivan", "ivan@example.com", 25);
+        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+        userService.delete(user.getId());
+        ArgumentCaptor<UserEvent> captor = ArgumentCaptor.forClass(UserEvent.class);
+        verify(kafkaTemplate).send(any(String.class), captor.capture());
+        UserEvent captured = captor.getValue();
+        assertEquals("ivan@example.com", captured.getEmail());
+        assertEquals(UserOperation.DELETE, captured.getUserOperation());
     }
 }
