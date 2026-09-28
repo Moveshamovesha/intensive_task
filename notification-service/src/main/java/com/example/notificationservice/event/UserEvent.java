@@ -17,7 +17,15 @@ public class UserEvent {
         return email;
     }
 
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
     public UserOperation getUserOperation() {
         return userOperation;
+    }
+
+    public void setUserOperation(UserOperation userOperation) {
+        this.userOperation = userOperation;
     }
 }
