@@ -16,4 +16,4 @@ public class OpenApiConfig {
                         .version("1.0.0")
                         .description("REST API для управления пользователями"));
     }
-}git diff --no-index NUL user-service/src/main/java/com/example/config/OpenApiConfig.java
+}
