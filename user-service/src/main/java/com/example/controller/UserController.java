@@ -16,7 +16,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.hateoas.CollectionModel;
 import org.springframework.hateoas.EntityModel;
-import org.springframework.hateoas.IanaLinkRelations;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -33,7 +32,6 @@ import java.util.List;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.linkTo;
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.methodOn;
 
-@Tag(name = "Пользователи", description = "CRUD-операции над пользователями")
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
@@ -57,12 +55,15 @@ public class UserController {
     @GetMapping
     public CollectionModel<EntityModel<UserResponse>> getAll() {
         List<EntityModel<UserResponse>> users = userService.getAll().stream()
-                .map(this::toModel)
-                .toList();
+                .map(user -> EntityModel.of(user,
+                        linkTo(methodOn(UserController.class).getById(user.id())).withSelfRel(),
+                        linkTo(methodOn(UserController.class).getAll()).withRel("all-users")
+                ))
+                        .toList();
 
-        return CollectionModel.of(users,
-                linkTo(methodOn(UserController.class).getAll()).withSelfRel(),
-                linkTo(methodOn(UserController.class).create(null)).withRel("create"));
+                return CollectionModel.of(users,
+                        linkTo(methodOn(UserController.class).getAll()).withSelfRel()
+                );
     }
 
     @Operation(summary = "Получить пользователя по id")
@@ -78,10 +79,14 @@ public class UserController {
                             schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/{id}")
-    public EntityModel<UserResponse> getById(
-            @Parameter(description = "Идентификатор пользователя", example = "1")
-            @PathVariable Long id) {
-        return toModel(userService.getById(id));
+    public EntityModel<UserResponse> getById(@PathVariable Long id) {
+        UserResponse user = userService.getById(id);
+
+        return EntityModel.of(user,
+                linkTo(methodOn(UserController.class).getById(id)).withSelfRel(),
+                linkTo(methodOn(UserController.class).getAll()).withRel("all-users"),
+                linkTo(methodOn(UserController.class).delete(id)).withRel("delete")
+        );
     }
 
     @Operation(summary = "Создать пользователя")
@@ -98,11 +103,14 @@ public class UserController {
     })
     @PostMapping
     public ResponseEntity<EntityModel<UserResponse>> create(@Valid @RequestBody UserCreateRequest request) {
-        EntityModel<UserResponse> createdUser = toModel(userService.create(request));
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .location(createdUser.getRequiredLink(IanaLinkRelations.SELF).toUri())
-                .body(createdUser);
+        UserResponse user = userService.create(request);
+
+        EntityModel<UserResponse> model = EntityModel.of(user,
+                linkTo(methodOn(UserController.class).getById(user.id())).withSelfRel(),
+                linkTo(methodOn(UserController.class).getAll()).withRel("all-users")
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(model);
     }
 
     @Operation(summary = "Обновить пользователя")
@@ -121,11 +129,14 @@ public class UserController {
                             schema = @Schema(implementation = ErrorResponse.class)))
     })
     @PutMapping("/{id}")
-    public EntityModel<UserResponse> update(
-            @Parameter(description = "Идентификатор пользователя", example = "1")
-            @PathVariable Long id,
-            @Valid @RequestBody UserUpdateRequest request) {
-        return toModel(userService.update(id, request));
+    public EntityModel<UserResponse> update(@PathVariable Long id, @Valid @RequestBody UserUpdateRequest request) {
+        UserResponse user = userService.update(id, request);
+
+        return EntityModel.of(user,
+                linkTo(methodOn(UserController.class).getById(id)).withSelfRel(),
+                linkTo(methodOn(UserController.class).getAll()).withRel("all-users"),
+                linkTo(methodOn(UserController.class).delete(id)).withRel("delete")
+        );
     }
 
     @Operation(summary = "Удалить пользователя")
