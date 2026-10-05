@@ -293,3 +293,113 @@ intensive-task/
 - Десериализация событий: по умолчанию JsonDeserializer доверяет типовым заголовкам продюсера и списку trusted packages. Решение: `use.type.headers=false` + `value.default.type` + корректный `trusted.packages` — консьюмер не зависит от классов user-service.
 - У классов событий должны быть сеттеры: без них Jackson создаёт объект с полями null.
 - Отправка в Kafka выполняется после коммита операции с БД, чтобы не разослать уведомления о несостоявшихся событиях. Известное узкое место: если брокер недоступен в момент отправки, событие теряется; production-решение — паттерн Outbox.
+
+## Состав команды и распределение задач
+**Задание 6: Swagger (Springdoc OpenAPI) + HATEOAS**
+
+| Участник | Роль | Задачи |
+| --- | --- | --- |
+| Александр Куприенко (тимлид) | HATEOAS, архитектура, Git | Подключение spring-boot-starter-hateoas; обёртка ответов контроллера в EntityModel / CollectionModel; добавление навигационных ссылок (self, all-users, delete) ко всем эндпоинтам; README; ревью всех PR |
+| Ким Константин | Документация контроллеров и моделей | Аннотации @Operation, @ApiResponse к методам UserController; аннотации @Schema к классам UserResponse, UserCreateRequest, UserUpdateRequest |
+| Сергей Ибрагимов | Инфраструктура Swagger | Подключение springdoc-openapi-starter-webmvc-ui; базовая конфигурация OpenAPI (title, version, description); проверка доступности Swagger UI по /swagger-ui.html |
+
+### Фича-ветки
+- `feature/hateoas` — обёртка ответов в EntityModel/CollectionModel, навигационные ссылки (Александр)
+- `feature/swagger-config` — зависимость springdoc, конфигурационный класс OpenAPI (Сергей)
+- `feature/swagger-annotations` — @Operation, @ApiResponse, @Schema на контроллерах и DTO (Константин)
+
+## Что добавлено
+
+### HATEOAS
+Каждый ответ API теперь содержит секцию `_links` с навигационными ссылками.
+
+Пример ответа `GET /api/users/1`:
+```json
+{
+  "id": 1,
+  "name": "Александр",
+  "email": "alex@mail.com",
+  "age": 25,
+  "createdAt": "2026-10-04T12:00:00",
+  "_links": {
+    "self":      { "href": "http://localhost:8080/api/users/1" },
+    "all-users": { "href": "http://localhost:8080/api/users" },
+    "delete":    { "href": "http://localhost:8080/api/users/1" }
+  }
+}
+
+```
+
+Пример ответа `GET /api/users`:
+```json
+{
+  "_embedded": {
+    "userResponseList": [ ... ]
+  },
+  "_links": {
+    "self": { "href": "http://localhost:8080/api/users" }
+  }
+}
+
+```
+
+### Swagger UI
+Документация доступна по адресу: `http://localhost:8080/swagger-ui.html`
+
+## Структура проекта
+**Задание 6: Swagger + HATEOAS**
+
+```
+intensive-task/
+├── pom.xml                              — родительский pom
+└── user-service/
+    ├── pom.xml                          — добавлены: hateoas, springdoc-openapi
+    └── src/
+        └── main/java/com/example/
+            ├── UserServiceApplication.java
+            ├── config/
+            │   └── OpenApiConfig.java           — конфигурация Swagger (title, version, description) (Сергей)
+            ├── controller/
+            │   └── UserController.java          — EntityModel/CollectionModel + HATEOAS-ссылки (Александр); @Operation, @ApiResponse (Константин)
+            ├── dto/
+            │   ├── UserResponse.java            — @Schema (Константин)
+            │   ├── UserCreateRequest.java       — @Schema (Константин)
+            │   └── UserUpdateRequest.java       — @Schema (Константин)
+            ├── entity/User.java
+            ├── exception/
+            ├── mapper/UserMapper.java
+            ├── repository/UserRepository.java
+            └── service/
+                ├── UserService.java
+                └── UserServiceImpl.java
+
+```
+
+## Запуск проекта
+**Задание 6: Swagger + HATEOAS**
+
+1. Установить PostgreSQL и создать базу данных:
+```sql
+CREATE DATABASE user_db;
+
+```
+2. Задать переменные окружения:
+   - `DB_USER`, `DB_PASSWORD` — логин и пароль локального PostgreSQL.
+3. Запустить `UserServiceApplication` (порт 8080).
+4. Проверка HATEOAS:
+   - `GET /api/users` → список пользователей с `_links` у каждого и у коллекции
+   - `GET /api/users/{id}` → пользователь с `_links`: self, all-users, delete
+   - `POST /api/users` → созданный пользователь с `_links`: self, all-users
+   - `PUT /api/users/{id}` → обновлённый пользователь с `_links`: self, all-users, delete
+5. Проверка Swagger UI:
+   - Открыть в браузере: `http://localhost:8080/swagger-ui.html`
+   - Все эндпоинты задокументированы с описанием, параметрами и примерами ответов
+
+## Тестирование
+- Запустить приложение и открыть Swagger UI — все эндпоинты доступны для тестирования прямо из браузера без Postman.
+- Проверить наличие секции `_links` в каждом ответе через Swagger UI или Postman.
+
+## Сложности и решения
+- `UserResponse` является record, поэтому геттеры генерируются без префикса `get`: вместо `user.getId()` используется `user.id()`.
+- `EntityModel` не подходит для record напрямую через наследование (record объявлен final), поэтому используется фабричный метод `EntityModel.of(object, links...)` — объект оборачивается снаружи, без изменения самого record.
+- Для коллекций используется `CollectionModel<EntityModel<UserResponse>>` — обёртка над списком с общей ссылкой self на коллекцию.
