@@ -37,6 +37,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -66,7 +67,9 @@ class UserControllerTest {
 
             mockMvc.perform(get("/api/users"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$", hasSize(0)));
+                    .andExpect(jsonPath("$._embedded").doesNotExist())
+                    .andExpect(jsonPath("$._links.self.href", is("http://localhost/api/users")))
+                    .andExpect(jsonPath("$._links.create.href", is("http://localhost/api/users")));
         }
 
         @Test
@@ -75,11 +78,15 @@ class UserControllerTest {
 
             mockMvc.perform(get("/api/users"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$", hasSize(1)))
-                    .andExpect(jsonPath("$[0].id", is(1)))
-                    .andExpect(jsonPath("$[0].name", is("Ivan")))
-                    .andExpect(jsonPath("$[0].email", is("ivan@example.com")))
-                    .andExpect(jsonPath("$[0].age", is(25)));
+                    .andExpect(jsonPath("$._embedded.userResponseList", hasSize(1)))
+                    .andExpect(jsonPath("$._embedded.userResponseList[0].id", is(1)))
+                    .andExpect(jsonPath("$._embedded.userResponseList[0].name", is("Ivan")))
+                    .andExpect(jsonPath("$._embedded.userResponseList[0].email", is("ivan@example.com")))
+                    .andExpect(jsonPath("$._embedded.userResponseList[0].age", is(25)))
+                    .andExpect(jsonPath("$._embedded.userResponseList[0]._links.self.href",
+                            is("http://localhost/api/users/1")))
+                    .andExpect(jsonPath("$._links.self.href", is("http://localhost/api/users")))
+                    .andExpect(jsonPath("$._links.create.href", is("http://localhost/api/users")));
         }
 
         @Test
@@ -90,18 +97,20 @@ class UserControllerTest {
 
             mockMvc.perform(get("/api/users"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$", hasSize(2)))
-                    .andExpect(jsonPath("$[0].name", is("Ivan")))
-                    .andExpect(jsonPath("$[1].name", is("Petr")));
+                    .andExpect(jsonPath("$._embedded.userResponseList", hasSize(2)))
+                    .andExpect(jsonPath("$._embedded.userResponseList[0].name", is("Ivan")))
+                    .andExpect(jsonPath("$._embedded.userResponseList[1].name", is("Petr")))
+                    .andExpect(jsonPath("$._embedded.userResponseList[1]._links.self.href",
+                            is("http://localhost/api/users/2")));
         }
 
         @Test
-        void returnsJsonContentType() throws Exception {
+        void returnsHalJsonContentType() throws Exception {
             when(userService.getAll()).thenReturn(List.of(sampleUser()));
 
             mockMvc.perform(get("/api/users"))
                     .andExpect(status().isOk())
-                    .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON));
+                    .andExpect(content().contentTypeCompatibleWith(MediaType.parseMediaType("application/hal+json")));
         }
     }
 
@@ -119,7 +128,11 @@ class UserControllerTest {
                     .andExpect(jsonPath("$.name", is("Ivan")))
                     .andExpect(jsonPath("$.email", is("ivan@example.com")))
                     .andExpect(jsonPath("$.age", is(25)))
-                    .andExpect(jsonPath("$.createdAt", is("2024-01-01T12:00:00")));
+                    .andExpect(jsonPath("$.createdAt", is("2024-01-01T12:00:00")))
+                    .andExpect(jsonPath("$._links.self.href", is("http://localhost/api/users/1")))
+                    .andExpect(jsonPath("$._links.users.href", is("http://localhost/api/users")))
+                    .andExpect(jsonPath("$._links.update.href", is("http://localhost/api/users/1")))
+                    .andExpect(jsonPath("$._links.delete.href", is("http://localhost/api/users/1")));
         }
 
         @Test
@@ -184,7 +197,10 @@ class UserControllerTest {
                     .andExpect(status().isCreated())
                     .andExpect(jsonPath("$.id", is(1)))
                     .andExpect(jsonPath("$.name", is("Ivan")))
-                    .andExpect(jsonPath("$.email", is("ivan@example.com")));
+                    .andExpect(jsonPath("$.email", is("ivan@example.com")))
+                    .andExpect(jsonPath("$._links.self.href", is("http://localhost/api/users/1")))
+                    .andExpect(jsonPath("$._links.users.href", is("http://localhost/api/users")))
+                    .andExpect(header().string("Location", "http://localhost/api/users/1"));
         }
 
         @Test
@@ -407,7 +423,9 @@ class UserControllerTest {
                     .andExpect(jsonPath("$.id", is(1)))
                     .andExpect(jsonPath("$.name", is("Petr")))
                     .andExpect(jsonPath("$.email", is("petr@example.com")))
-                    .andExpect(jsonPath("$.age", is(30)));
+                    .andExpect(jsonPath("$.age", is(30)))
+                    .andExpect(jsonPath("$._links.self.href", is("http://localhost/api/users/1")))
+                    .andExpect(jsonPath("$._links.delete.href", is("http://localhost/api/users/1")));
         }
 
         @Test
