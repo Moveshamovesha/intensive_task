@@ -15,16 +15,15 @@
     <modules>
         <module>user-service</module>
         <module>notification-service</module>
-        <module>discovery-server</module>
-        <module>config-server</module>
         <module>api-gateway</module>
     </modules>
     <properties>
         <java.version>17</java.version>
-        <spring-cloud.version>2023.0.3</spring-cloud.version>
+        <spring-cloud.version>2023.0.6</spring-cloud.version>
     </properties>
     <dependencyManagement>
         <dependencies>
+            <!-- Source: https://mvnrepository.com/artifact/org.springframework.cloud/spring-cloud-dependencies -->
             <dependency>
                 <groupId>org.springframework.cloud</groupId>
                 <artifactId>spring-cloud-dependencies</artifactId>
