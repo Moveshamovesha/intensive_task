@@ -16,8 +16,7 @@ import java.util.concurrent.TimeoutException;
 @Component
 public class KafkaEventPublisher {
 
-    private static final Logger log =
-            LoggerFactory.getLogger(KafkaEventPublisher.class);
+    private static final Logger log = LoggerFactory.getLogger(KafkaEventPublisher.class);
 
     private final KafkaTemplate<String, UserEvent> kafkaTemplate;
     private final CircuitBreaker circuitBreaker;
@@ -25,9 +24,8 @@ public class KafkaEventPublisher {
     @Value("${app.kafka.topic.user-events}")
     private String userEventsTopic;
 
-    public KafkaEventPublisher(
-            KafkaTemplate<String, UserEvent> kafkaTemplate,
-            CircuitBreakerFactory<?, ?> circuitBreakerFactory) {
+    public KafkaEventPublisher(KafkaTemplate<String, UserEvent> kafkaTemplate,
+                               CircuitBreakerFactory<?, ?> circuitBreakerFactory) {
         this.kafkaTemplate = kafkaTemplate;
         this.circuitBreaker = circuitBreakerFactory.create("kafka-publisher");
     }
@@ -35,25 +33,19 @@ public class KafkaEventPublisher {
     public void publish(UserEvent event) {
         circuitBreaker.run(() -> {
             try {
-                kafkaTemplate.send(userEventsTopic, event)
-                        .get(5, TimeUnit.SECONDS);
-
-                log.info("Kafka-событие успешно отправлено: {}", event);
+                kafkaTemplate.send(userEventsTopic, event).get(5, TimeUnit.SECONDS);
+                log.info("Kafka-событие отправлено: email={}, operation={}", event.getEmail(), event.getUserOperation());
                 return null;
-
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                throw new IllegalStateException(
-                        "Ожидание отправки Kafka-события прервано", e);
-
+                throw new IllegalStateException("Ожидание отправки Kafka-события прервано", e);
             } catch (ExecutionException | TimeoutException e) {
-                throw new IllegalStateException(
-                        "Не удалось отправить Kafka-событие", e);
+                throw new IllegalStateException("Не удалось отправить Kafka-событие", e);
             }
-        }, error -> {
-            log.error("Circuit Breaker: ошибка отправки Kafka-события", error);
-            throw new IllegalStateException(
-                    "Kafka-событие не опубликовано", error);
+        }, throwable -> {
+            log.warn("Circuit Breaker сработал, событие не доставлено: email={}, operation={}, причина={}",
+                    event.getEmail(), event.getUserOperation(), throwable.getMessage());
+            return null;
         });
     }
 }
