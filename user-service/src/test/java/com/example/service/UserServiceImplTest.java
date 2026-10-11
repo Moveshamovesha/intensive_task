@@ -10,7 +10,6 @@ import com.example.exception.EmailAlreadyExistsException;
 import com.example.exception.UserNotFoundException;
 import com.example.mapper.UserMapper;
 import com.example.repository.UserRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -18,7 +17,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -30,7 +28,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
 @ExtendWith(MockitoExtension.class)
 class UserServiceImplTest {
 
@@ -38,7 +35,7 @@ class UserServiceImplTest {
     private UserRepository userRepository;
 
     @Mock
-    private KafkaTemplate<String, UserEvent> kafkaTemplate;
+    private KafkaEventPublisher kafkaEventPublisher;
 
     @Spy
     private UserMapper userMapper = new UserMapper();
@@ -46,10 +43,6 @@ class UserServiceImplTest {
     @InjectMocks
     private UserServiceImpl userService;
 
-    @BeforeEach
-    void setUp() {
-        ReflectionTestUtils.setField(userService, "userEvents", "user-events");
-    }
 
     private User userWithId(Long id, String name, String email, Integer age) {
         User user = new User(name, email, age);
@@ -81,14 +74,22 @@ class UserServiceImplTest {
 
     @Test
     void create_shouldSendKafkaEvent_whenUserCreated() {
-        UserCreateRequest request = new UserCreateRequest("Ivan", "ivan@example.com", 25);
-        when(userRepository.existsByEmail("ivan@example.com")).thenReturn(false);
-        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        UserCreateRequest request =
+                new UserCreateRequest("Ivan", "ivan@example.com", 25);
+
+        when(userRepository.existsByEmail("ivan@example.com"))
+                .thenReturn(false);
+
+        when(userRepository.save(any(User.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         userService.create(request);
 
-        ArgumentCaptor<UserEvent> captor = ArgumentCaptor.forClass(UserEvent.class);
-        verify(kafkaTemplate).send(any(String.class), captor.capture());
+        ArgumentCaptor<UserEvent> captor =
+                ArgumentCaptor.forClass(UserEvent.class);
+
+        verify(kafkaEventPublisher).publish(captor.capture());
+
         UserEvent captured = captor.getValue();
         assertEquals("ivan@example.com", captured.getEmail());
         assertEquals(UserOperation.CREATE, captured.getUserOperation());
@@ -142,18 +143,23 @@ class UserServiceImplTest {
 
         assertThrows(UserNotFoundException.class, () -> userService.delete(99L));
         verify(userRepository, never()).deleteById(any());
-        verify(kafkaTemplate, never()).send(any(), any());
+        verify(kafkaEventPublisher, never()).publish(any(UserEvent.class));
     }
 
     @Test
     void delete_shouldSendKafkaEvent_whenUserDeleted() {
         User user = userWithId(1L, "Ivan", "ivan@example.com", 25);
-        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
+
+        when(userRepository.findById(user.getId()))
+                .thenReturn(Optional.of(user));
 
         userService.delete(user.getId());
 
-        ArgumentCaptor<UserEvent> captor = ArgumentCaptor.forClass(UserEvent.class);
-        verify(kafkaTemplate).send(any(String.class), captor.capture());
+        ArgumentCaptor<UserEvent> captor =
+                ArgumentCaptor.forClass(UserEvent.class);
+
+        verify(kafkaEventPublisher).publish(captor.capture());
+
         UserEvent captured = captor.getValue();
         assertEquals("ivan@example.com", captured.getEmail());
         assertEquals(UserOperation.DELETE, captured.getUserOperation());

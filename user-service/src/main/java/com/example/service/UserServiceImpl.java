@@ -10,8 +10,6 @@ import com.example.exception.EmailAlreadyExistsException;
 import com.example.exception.UserNotFoundException;
 import com.example.mapper.UserMapper;
 import com.example.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,15 +21,16 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
     private final UserMapper userMapper;
-    private final KafkaTemplate<String, UserEvent> kafkaTemplate;
-    @Value("${app.kafka.topic.user-events}")
-    private String userEvents;
+    private final KafkaEventPublisher kafkaEventPublisher;
 
 
-    public UserServiceImpl(UserRepository userRepository, UserMapper userMapper, KafkaTemplate<String, UserEvent> kafkaTemplate) {
+    public UserServiceImpl(
+            UserRepository userRepository,
+            UserMapper userMapper,
+            KafkaEventPublisher kafkaEventPublisher) {
         this.userRepository = userRepository;
         this.userMapper = userMapper;
-        this.kafkaTemplate = kafkaTemplate;
+        this.kafkaEventPublisher = kafkaEventPublisher;
     }
 
     @Override
@@ -57,7 +56,8 @@ public class UserServiceImpl implements UserService {
         }
         User user = userMapper.toEntity(request);
         User saved = userRepository.save(user);
-        kafkaTemplate.send(userEvents, new UserEvent(saved.getEmail(), UserOperation.CREATE));
+        kafkaEventPublisher.publish(
+                new UserEvent(saved.getEmail(), UserOperation.CREATE));
         return userMapper.toResponse(saved);
     }
 
@@ -80,6 +80,7 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(id).orElseThrow(()-> new UserNotFoundException("Пользователь не найден: id= "
         +id));
         userRepository.deleteById(id);
-        kafkaTemplate.send(userEvents, new UserEvent(user.getEmail(),UserOperation.DELETE));
+        kafkaEventPublisher.publish(
+                new UserEvent(user.getEmail(), UserOperation.DELETE));
     }
 }
