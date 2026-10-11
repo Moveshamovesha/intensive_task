@@ -403,3 +403,107 @@ CREATE DATABASE user_db;
 - `UserResponse` является record, поэтому геттеры генерируются без префикса `get`: вместо `user.getId()` используется `user.id()`.
 - `EntityModel` не подходит для record напрямую через наследование (record объявлен final), поэтому используется фабричный метод `EntityModel.of(object, links...)` — объект оборачивается снаружи, без изменения самого record.
 - Для коллекций используется `CollectionModel<EntityModel<UserResponse>>` — обёртка над списком с общей ссылкой self на коллекцию.
+
+## Состав команды и распределение задач
+**Задание 7: Service Discovery + Config Server + API Gateway + Circuit Breaker**
+
+| Участник | Роль | Задачи |
+| --- | --- | --- |
+| Александр Куприенко (тимлид) | API Gateway, архитектура, Git | Создание модуля api-gateway; подключение spring-cloud-starter-gateway; настройка маршрутов к user-service и notification-service; README; ревью всех PR |
+| Ким Константин | Инфраструктура | Создание модуля eureka-server (Spring Cloud Netflix Eureka); создание модуля config-server (Spring Cloud Config) |
+| Сергей Ибрагимов | user-service | Подключение eureka-client к user-service; подключение и настройка Circuit Breaker (Resilience4j) |
+
+### Фича-ветки
+- `feature/api-gateway` — модуль api-gateway, маршруты (Александр)
+- `feature/eureka-config` — модули eureka-server и config-server (Константин)
+- `feature/user-service-cloud` — eureka-client + circuit breaker внутри user-service (Сергей)
+
+## Что добавлено
+
+### API Gateway
+Единая точка входа в систему. Все запросы проходят через Gateway, который перенаправляет их на нужный сервис.
+
+Маршруты:
+
+| Маршрут | Перенаправление |
+| --- | --- |
+| `/users/**` | `http://localhost:8080` (user-service) |
+| `/notifications/**` | `http://localhost:3025` (notification-service) |
+
+### Service Discovery (Eureka)
+Сервисы регистрируются в Eureka Server и обнаруживают друг друга по имени, без хардкода адресов.
+
+### Config Server
+Централизованное хранение конфигурации. Сервисы получают настройки из Config Server при старте.
+
+### Circuit Breaker (Resilience4j)
+Защита user-service от каскадных сбоев. При недоступности зависимого сервиса Circuit Breaker размыкает цепь и возвращает fallback-ответ.
+
+## Структура проекта
+**Задание 7: Service Discovery + Config Server + API Gateway + Circuit Breaker**
+
+intensive-task/
+├── pom.xml — родительский pom, BOM Spring Cloud 2023.0.6
+├── api-gateway/ — новый модуль (Александр)
+│ ├── pom.xml
+│ └── src/main/
+│ ├── java/com/example/gateway/
+│ │ └── ApiGatewayApplication.java
+│ └── resources/
+│ └── application.properties
+├── eureka-server/ — новый модуль (Константин)
+│ ├── pom.xml
+│ └── src/main/
+│ ├── java/com/example/eureka/
+│ │ └── EurekaServerApplication.java
+│ └── resources/
+│ └── application.properties
+├── config-server/ — новый модуль (Константин)
+│ ├── pom.xml
+│ └── src/main/
+│ ├── java/com/example/config/
+│ │ └── ConfigServerApplication.java
+│ └── resources/
+│ └── application.properties
+└── user-service/ — изменения внутри (Сергей)
+├── pom.xml — добавлены: eureka-client, resilience4j
+└── src/main/
+├── java/com/example/
+│ └── ...
+└── resources/
+└── application.properties — добавлены настройки eureka + circuit breaker
+
+## Запуск проекта
+**Задание 7: Service Discovery + Config Server + API Gateway + Circuit Breaker**
+
+Сервисы запускать строго в таком порядке (каждый последующий зависит от предыдущего):
+
+1. Запустить PostgreSQL и создать базу данных:
+
+CREATE DATABASE user_db;
+
+2. Задать переменные окружения:
+   - DB_USER, DB_PASSWORD — логин и пароль локального PostgreSQL
+3. Запустить Config Server (порт по умолчанию: 8888)
+4. Запустить Eureka Server (порт по умолчанию: 8761)
+5. Запустить user-service (порт 8080)
+6. Запустить notification-service (порт 3025)
+7. Запустить api-gateway (порт 8765)
+
+## Проверка работы
+
+Gateway маршруты:
+- GET http://localhost:8765/users → список пользователей через Gateway
+- GET http://localhost:8765/users/{id} → пользователь по ID через Gateway
+- GET http://localhost:8765/notifications → уведомления через Gateway
+
+Eureka Dashboard:
+- Открыть в браузере: http://localhost:8761
+- Все зарегистрированные сервисы должны быть видны в списке
+
+Circuit Breaker:
+- Остановить зависимый сервис → Circuit Breaker должен вернуть fallback-ответ вместо ошибки
+
+## Сложности и решения
+- BOM Spring Cloud 2023.0.6 добавлен в корневой pom.xml через dependencyManagement со scope=import — версии всех Spring Cloud зависимостей управляются централизованно, в модулях версии не указываются.
+- Порядок запуска сервисов критичен: Config Server должен стартовать первым, иначе остальные сервисы не получат конфигурацию.
